@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+      target: production
+      args:
+        BUILDKIT_INLINE_CACHE: 1
+    image: laravel-blog-api:latest
+    container_name: laravel_blog_app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - .:/var/www/html
+      - ./storage/app/public:/var/www/html/public/storage
+      - ./.logs/laravel:/var/www/html/storage/logs
+      - ./.logs/supervisor:/var/log/supervisor
+    environment:
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - CACHE_DRIVER=file
+      - SESSION_DRIVER=database
+      - QUEUE_CONNECTION=database
+    depends_on:
+      - database
+      - redis
+    networks:
+      - laravel_blog_network
+
+  webserver:
+    image: nginx:alpine
+    container_name: laravel_blog_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - .:/var/www/html
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./docker/nginx/sites-available:/etc/nginx/sites-available
+      - ./docker/nginx/ssl:/etc/nginx/ssl
+      - ./.logs/nginx:/var/log/nginx
+      - ./.ssl/letsencrypt:/etc/letsencrypt
+      - ./.ssl/letsencrypt-lib:/var/lib/letsencrypt
+    depends_on:
+      - app
+    networks:
+      - laravel_blog_network
+
+  database:
+    image: mariadb:10.11
+    container_name: laravel_blog_mariadb
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - ./.database/mariadb:/var/lib/mysql
+      - ./.logs/mariadb:/var/log/mysql
+      - ./docker/mysql/my.cnf:/etc/mysql/my.cnf
+    ports:
+      - "3306:3306"
+    networks:
+      - laravel_blog_network
+
+  redis:
+    image: redis:alpine
+    container_name: laravel_blog_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./.database/redis:/data
+      - ./.logs/redis:/var/log/redis
+    networks:
+      - laravel_blog_network
+
+# volumes 섹션 제거 - 모든 데이터를 호스트 경로에 직접 저장
+
+networks:
+  laravel_blog_network:
+    driver: bridge

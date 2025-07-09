@@ -1,0 +1,78 @@
+# Git 관련
+.git
+.gitignore
+.gitattributes
+
+# 문서
+README.md
+docs/
+reports/
+
+# 로그 및 임시 파일
+*.log
+.logs/
+tmp/
+
+# 환경 설정
+.env*
+!.env.example
+
+# 개발 도구
+.vscode/
+.idea/
+.fleet/
+*.swp
+*.swo
+
+# 테스트
+.phpunit.cache
+phpunit.xml
+tests/
+.pest/
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+.npm/
+
+# PHP
+vendor/
+composer.lock
+
+# Laravel 캐시 및 스토리지
+storage/app/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/logs/*
+bootstrap/cache/*.php
+
+# 빌드 결과물 (멀티스테이지에서 처리)
+public/build/
+public/hot
+public/storage
+
+# Docker 관련
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# 백업 및 데이터베이스
+backups/
+.database/
+
+# SSL 인증서
+.ssl/
+
+# OS 관련
+.DS_Store
+Thumbs.db
+
+# IDE 관련
+*.sublime-project
+*.sublime-workspace
+
+# 기타
+*.tar.gz
+*.zip

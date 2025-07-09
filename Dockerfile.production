@@ -1,0 +1,168 @@
+# ====================
+# Build Stage - 빌드 의존성 설치 및 애셋 컴파일
+# ====================
+FROM node:18-alpine AS node-builder
+
+# 작업 디렉토리 설정
+WORKDIR /app
+
+# package.json과 package-lock.json 복사 (의존성 캐싱 최적화)
+COPY package*.json ./
+
+# Node.js 의존성 설치
+RUN npm ci --only=production && npm cache clean --force
+
+# 소스 코드 복사
+COPY . .
+
+# 프론트엔드 애셋 빌드
+RUN npm run build
+
+# ====================
+# Composer Dependencies Stage - Composer 의존성 설치
+# ====================
+FROM composer:2.6 AS composer-builder
+
+# 작업 디렉토리 설정
+WORKDIR /app
+
+# composer.json과 composer.lock 복사 (의존성 캐싱 최적화)
+COPY composer.json composer.lock ./
+
+# Composer 의존성 설치 (프로덕션 최적화)
+RUN composer install \
+    --no-dev \
+    --optimize-autoloader \
+    --no-interaction \
+    --no-progress \
+    --no-suggest \
+    --prefer-dist \
+    && composer clear-cache
+
+# ====================
+# Final Production Stage - 최종 프로덕션 이미지
+# ====================
+FROM php:8.3-fpm-alpine AS production
+
+# 필수 패키지 설치 (단일 RUN으로 레이어 최적화)
+RUN apk add --no-cache \
+    # 시스템 패키지
+    bash \
+    curl \
+    supervisor \
+    dcron \
+    # PHP 확장용 라이브러리
+    libpng-dev \
+    libwebp-dev \
+    libjpeg-turbo-dev \
+    freetype-dev \
+    libzip-dev \
+    libxml2-dev \
+    oniguruma-dev \
+    # 빌드 도구 (multi-stage에서 제거됨)
+    && apk add --no-cache --virtual .build-deps \
+        $PHPIZE_DEPS \
+        zlib-dev \
+    # PHP 확장 설치
+    && docker-php-ext-configure gd \
+        --with-freetype \
+        --with-jpeg \
+        --with-webp \
+    && docker-php-ext-install -j$(nproc) \
+        pdo_mysql \
+        mbstring \
+        exif \
+        pcntl \
+        bcmath \
+        gd \
+        zip \
+        opcache \
+    # 빌드 도구 제거 (이미지 크기 최적화)
+    && apk del .build-deps \
+    # 패키지 캐시 정리
+    && rm -rf /var/cache/apk/*
+
+# 사용자 생성 (Alpine 방식)
+RUN addgroup -g 1000 www \
+    && adduser -u 1000 -G www -s /bin/bash -D www
+
+# 작업 디렉토리 설정
+WORKDIR /var/www/html
+
+# PHP 설정 파일 복사
+COPY docker/php/php.ini /usr/local/etc/php/php.ini
+COPY docker/php/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
+
+# Supervisor 설정 복사
+COPY docker/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Composer 바이너리 복사 (멀티스테이지에서)
+COPY --from=composer:2.6 /usr/bin/composer /usr/bin/composer
+
+# 빌드된 Composer 의존성 복사
+COPY --from=composer-builder --chown=www:www /app/vendor ./vendor
+
+# 빌드된 Node.js 애셋 복사
+COPY --from=node-builder --chown=www:www /app/public/build ./public/build
+
+# Laravel 애플리케이션 코드 복사 (의존성 제외)
+COPY --chown=www:www . .
+
+# Laravel 캐시 최적화 및 cron 설정 (단일 RUN으로 레이어 최적화)
+RUN php artisan config:cache \
+    && php artisan route:cache \
+    && php artisan view:cache \
+    && php artisan event:cache \
+    # 권한 설정
+    && chown -R www:www /var/www/html \
+    && chmod -R 755 /var/www/html/storage \
+    && chmod -R 755 /var/www/html/bootstrap/cache \
+    # cron 로그 파일 생성
+    && touch /var/log/cron.log \
+    && chmod 644 /var/log/cron.log \
+    # 크론 작업 설정 (Laravel 스케줄러)
+    && echo "* * * * * www cd /var/www/html && php artisan schedule:run >> /var/log/cron.log 2>&1" >> /etc/crontabs/root \
+    # 추가 정리 작업 cron 설정
+    && echo "0 3 * * * www find /var/www/html/storage/framework/cache -name '*.php' -mtime +1 -delete 2>/dev/null" >> /etc/crontabs/root \
+    && echo "0 4 * * * www find /var/www/html/storage/framework/sessions -name 'sess_*' -mtime +1 -delete 2>/dev/null" >> /etc/crontabs/root \
+    # 임시 파일 정리
+    && rm -rf /tmp/* /var/tmp/*
+
+# 헬스체크 추가
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD php artisan inspire --quiet || exit 1
+
+# 포트 노출
+EXPOSE 9000
+
+# 사용자 변경
+USER www
+
+# 시작 명령어
+CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+
+# ====================
+# Development Stage - 개발용 이미지 (선택사항)
+# ====================
+FROM production AS development
+
+# root로 전환 (개발 도구 설치용)
+USER root
+
+# 개발 도구 설치
+RUN apk add --no-cache \
+    git \
+    vim \
+    && docker-php-ext-install pcov
+
+# Composer 개발 의존성 설치
+RUN composer install \
+    --optimize-autoloader \
+    --no-interaction \
+    && composer clear-cache
+
+# 개발용 PHP 설정
+COPY docker/php/php.dev.ini /usr/local/etc/php/php.ini
+
+# 사용자 다시 변경
+USER www
