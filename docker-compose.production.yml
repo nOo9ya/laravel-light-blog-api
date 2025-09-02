@@ -4,7 +4,7 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile.production
+      dockerfile: .docker/Dockerfile.production
       target: production
       args:
         BUILDKIT_INLINE_CACHE: 1
@@ -38,9 +38,9 @@ services:
       - "443:443"
     volumes:
       - .:/var/www/html
-      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./docker/nginx/sites-available:/etc/nginx/sites-available
-      - ./docker/nginx/ssl:/etc/nginx/ssl
+      - ./.docker/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./.docker/nginx/sites-available:/etc/nginx/sites-available
+      - ./.docker/nginx/ssl:/etc/nginx/ssl
       - ./.logs/nginx:/var/log/nginx
       - ./.ssl/letsencrypt:/etc/letsencrypt
       - ./.ssl/letsencrypt-lib:/var/lib/letsencrypt
@@ -61,7 +61,7 @@ services:
     volumes:
       - ./.database/mariadb:/var/lib/mysql
       - ./.logs/mariadb:/var/log/mysql
-      - ./docker/mysql/my.cnf:/etc/mysql/my.cnf
+      - ./.docker/mysql/my.cnf:/etc/mysql/my.cnf
     ports:
       - "3306:3306"
     networks:

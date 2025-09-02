@@ -54,7 +54,7 @@ public/hot
 public/storage
 
 # Docker 관련
-Dockerfile*
+.docker/
 docker-compose*.yml
 .dockerignore
 

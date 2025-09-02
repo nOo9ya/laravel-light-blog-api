@@ -218,7 +218,7 @@ verify_prerequisites() {
     # 파일 존재 확인
     local required_files=(
         "docker-compose.production.yml"
-        "Dockerfile.production"
+        ".docker/Dockerfile.production"
         "deploy.sh"
     )
 
@@ -239,8 +239,8 @@ deploy_docker() {
     # 1. 디렉토리 초기화
     if [ "$INIT_DIRS" = true ]; then
         log_substep "호스트 디렉토리 초기화..."
-        if [ -f "docker/scripts/init-directories.sh" ]; then
-            ./docker/scripts/init-directories.sh
+        if [ -f ".docker/scripts/init-directories.sh" ]; then
+            ./.docker/scripts/init-directories.sh
         else
             log_warning "init-directories.sh를 찾을 수 없습니다"
         fi
@@ -249,8 +249,8 @@ deploy_docker() {
     # 2. 기존 데이터 백업
     if [ "$BACKUP_DATA" = true ]; then
         log_substep "기존 데이터 백업 중..."
-        if [ -f "docker/scripts/backup-volumes.sh" ]; then
-            ./docker/scripts/backup-volumes.sh
+        if [ -f ".docker/scripts/backup-volumes.sh" ]; then
+            ./.docker/scripts/backup-volumes.sh
         else
             log_warning "backup-volumes.sh를 찾을 수 없습니다"
         fi
@@ -259,8 +259,8 @@ deploy_docker() {
     # 3. 이미지 빌드 최적화
     if [ "$FORCE_BUILD" = true ]; then
         log_substep "Docker 이미지 최적화 빌드 중..."
-        if [ -f "docker/scripts/build-optimize.sh" ]; then
-            ./docker/scripts/build-optimize.sh
+        if [ -f ".docker/scripts/build-optimize.sh" ]; then
+            ./.docker/scripts/build-optimize.sh
         else
             log_warning "build-optimize.sh를 찾을 수 없습니다"
         fi
@@ -277,8 +277,8 @@ deploy_docker() {
     # 5. 컨테이너 내부 cron 설정
     log_substep "컨테이너 cron 설정 중..."
     if docker ps | grep -q "laravel_blog_app"; then
-        if [ -f "docker/scripts/setup-cron.sh" ]; then
-            docker cp docker/scripts/setup-cron.sh laravel_blog_app:/tmp/
+        if [ -f ".docker/scripts/setup-cron.sh" ]; then
+            docker cp .docker/scripts/setup-cron.sh laravel_blog_app:/tmp/
             docker exec laravel_blog_app bash /tmp/setup-cron.sh
         fi
     fi
