@@ -60,7 +60,7 @@ JWT 인증 기반의 완전한 헤드리스 CMS 백엔드를 제공합니다.
 - 일관된 JSON 응답 구조
 
 ### Infrastructure
-- Docker 컨테이너화
+- Docker 컨테이너화 (`.docker/` 디렉토리 구조)
 - Nginx 웹서버
 - Supervisor 프로세스 관리
 
@@ -87,10 +87,10 @@ git clone https://github.com/nOo9ya/laravel-light-blog-api.git
 cd laravel-light-blog-api
 
 # 2. Docker 환경 배포
-./deploy-all.sh docker --build --init-dirs
+./scripts/deploy-all.sh docker --build --init-dirs
 
 # 3. 베어메탈 서버 배포 (프로덕션)
-./deploy-all.sh baremetal \
+./scripts/deploy-all.sh baremetal \
     --domain your-domain.com \
     --email admin@your-domain.com \
     --db-password your-secure-password
@@ -182,7 +182,7 @@ Authorization: Bearer {JWT_TOKEN}
 ./vendor/bin/sail up -d
 
 # 프로덕션 배포
-./deploy-all.sh baremetal --domain example.com --email admin@example.com --db-password password
+./scripts/deploy-all.sh baremetal --domain example.com --email admin@example.com --db-password password
 ```
 
 ---
@@ -192,13 +192,13 @@ Authorization: Bearer {JWT_TOKEN}
 ### 통합 배포 스크립트
 ```bash
 # Docker 환경
-./deploy-all.sh docker --build --init-dirs
+./scripts/deploy-all.sh docker --build --init-dirs
 
 # 베어메탈 서버
-./deploy-all.sh baremetal --domain example.com --email admin@example.com --db-password password
+./scripts/deploy-all.sh baremetal --domain example.com --email admin@example.com --db-password password
 
 # SSL 인증서만 설정
-./deploy-all.sh ssl-only --domain example.com --email admin@example.com
+./scripts/deploy-all.sh ssl-only --domain example.com --email admin@example.com
 ```
 
 ### 프로젝트 관리
